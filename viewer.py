@@ -39,7 +39,10 @@ default_rframe_data = {'a1': np.array([ 51.5848967 ,  -5.93928407]),
 def fit_to_model(imchunk,model, mode = 'pinv',fit_pix_mask = None,baseline = None):
     import numpy as np
     #im_array = (imchunk-baseline)#/baseline
-    im_array = imchunk-baseline#/baseline
+    if not(baseline is None):
+    	im_array = imchunk-baseline#/baseline
+    else:
+    	im_array = imchunk
     imshape = np.shape(im_array[0])
     im_array = im_array.reshape((-1,imshape[0]*imshape[1]))
     if mode == 'nnls':
@@ -316,6 +319,12 @@ class MainWindow(TemplateBaseClass):
         
         #muscle demixing
         self.ui.applyDemixing.clicked.connect(self.extract_signals)
+        self.ui.subtractBackground.stateChanged.connect(self.subtractBackgroundChecked)
+    	self.subtract_background = self.ui.subtractBackground.isChecked()
+
+    def subtractBackgroundChecked(self,i):
+    	self.subtract_background = self.ui.subtractBackground.isChecked()
+    	print self.subtract_background
 
     def profileSelected(self,i):
         import cPickle
@@ -710,7 +719,7 @@ class MainWindow(TemplateBaseClass):
             #construct a mask do reduce the projection to just the data within the model
             fit_pix_mask = np.sum(model,axis=0) > 0
         if model_type == 'volumetric':
-            model_data = h5py.File('models/%s/components/volumetric_components_nikon_10x.hdf5'%s(self.cur_model),'r')
+            model_data = h5py.File('models/%s/components/flatened_components_10x_nikon.hdf5'%(self.cur_model),'r')
             #muscles = model_data.keys()
             model_muscles = [np.array(model_data[muscle]) for muscle in muscles]
             output_shapes = [output_shape for muscle in muscles]
@@ -723,14 +732,15 @@ class MainWindow(TemplateBaseClass):
 
         print muscles
         print np.shape(model)
-        return
+        #return
         #fname = os.path.join(self.CurrentDirPath,'epoch_data.cpkl')
         #with open(fname,'rb') as f:
         #    import cPickle
         #    baseline_range = cPickle.load(f)['baseline_F']
-
-        baseln = np.mean(imgs[baseline_range],axis = 0)
-        
+        if self.subtract_background:
+        	baseln = np.mean(imgs[baseline_range],axis = 0)
+        else:
+        	baseln = None
         chnk_sz = 100
         num_samps = np.shape(imgs)[0]
         print num_samps
@@ -746,6 +756,7 @@ class MainWindow(TemplateBaseClass):
         #fit = fit_to_model(imchunk,model,mode = 'nnls',fit_pix_mask = fit_pix_mask)
         fname = os.path.join(self.CurrentDirPath,'model_fits.cpkl')
         savedict = dict()
+        import cPickle
         with open(fname,'wb') as f:
             [savedict.update({str(mname):sig}) for sig,mname in zip(np.hstack(fits),muscles)]
             cPickle.dump(savedict,f)
@@ -755,8 +766,8 @@ class MainWindow(TemplateBaseClass):
         #self.signalshelf = shelve.open(fname) 
         print np.shape(np.hstack(fits))
         print muscles
-        [self.signalshelf.update({str(mname):sig}) for sig,mname in zip(np.hstack(fits),muscles)]
-        self.add_model_signals()
+        #[self.signalshelf.update({str(mname):sig}) for sig,mname in zip(np.hstack(fits),muscles)]
+       # self.add_model_signals()
 
 win = MainWindow()
 
