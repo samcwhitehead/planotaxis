@@ -738,9 +738,11 @@ class MainWindow(TemplateBaseClass):
         #    import cPickle
         #    baseline_range = cPickle.load(f)['baseline_F']
         if self.subtract_background:
+        	baseline_range = self.epoch_dict['background']
         	baseln = np.mean(imgs[baseline_range],axis = 0)
         else:
-        	baseln = None
+        	baseln = None 
+        	print 'here'
         chnk_sz = 100
         num_samps = np.shape(imgs)[0]
         print num_samps
