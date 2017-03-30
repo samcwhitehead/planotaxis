@@ -21,7 +21,8 @@ path = os.path.dirname(os.path.abspath(__file__))
 uiFile = os.path.join(path, 'viewer.ui')
 WindowTemplate, TemplateBaseClass = pg.Qt.loadUiType(uiFile)
 
-import tifffile
+#import tifffile
+import h5py
 import numpy as np
 
 #import db_access as dba
@@ -78,7 +79,7 @@ def extract_signals(fly):
     #load the reference frame of the cofocal data and that of the imaged fly
     confocal_model = mm.GeometricModel(filepath = 'model_data.cpkl')
     #confocal_view = mm.ModelViewMPL(confocal_model)
-    pkname = 'basis_fits.cpkl'
+    pkname = 'rframe_fits.cpkl'
     fly_frame = mm.Frame();fly_frame.load(pkname)
     #get the transformation matrix A and compose with a scaling using a scaling of s
     #to construct a transformation for homogenious vectors
@@ -565,23 +566,26 @@ class MainWindow(TemplateBaseClass):
         #self.images = np.array(fly_db[fnum]['experiments'].values()[0]['tiff_data']['images'])
         #tfile = tifffile.TiffFile('image_stack.tif')
         #self.images = tfile.asarray()
-        self.CurrentTiffFileName = str(QtGui.QFileDialog.getOpenFileName(self, 
+        self.CurrentHDF5FileName = str(QtGui.QFileDialog.getOpenFileName(self, 
                                         'Dialog Title', 
-                                        '',
-                                        selectedFilter='*.tif'))
-        tfile = tifffile.TiffFile(self.CurrentTiffFileName)
+                                        '')[0])
+        print self.CurrentHDF5FileName
+        #tfile = tifffile.TiffFile(self.CurrentTiffFileName)
         #self.images = np.array(fly_db[fnum]['experiments'].values()[0]['tiff_data']['images'])
         import os
-        self.CurrentDirPath = os.path.split(self.CurrentTiffFileName)[0]
-        print self.CurrentDirPath
-        tfile = tifffile.TiffFile(self.CurrentTiffFileName)
-        self.images = tfile.asarray()
+        self.CurrentFlyPath = os.path.split(self.CurrentHDF5FileName)[0]
+        print self.CurrentFlyPath
+        self.FlyFile = h5py.File(self.CurrentHDF5FileName,'r')
+        print self.FlyFile.keys()
+
+        #tfile = tifffile.TiffFile(self.CurrentTiffFileName)
+        self.images = self.FlyFile['ca_cam_1']#np.array(self.FlyFile['ca_cam_1'])
         #self.maximg = np.max(self.images,axis = 0)
         #self.transform_img = self.affineWarp(self.maximg)
         #self.current_fly = selection.parent().text(0)
         #print self.current_fly
         #flydir = '%s%s/'%(dba.root_dir,self.current_fly)
-        import cPickle
+        #import cPickle
         #with open('tseries_data.cpkl','rb') as f:
         #    tser_data = cPickle.load(f)
         #tser_data = np.array(fly_db[fnum]['experiments'].values()[0]['tiff_data']['axon_framebase']['wb_frequency'])
@@ -597,7 +601,16 @@ class MainWindow(TemplateBaseClass):
                     (basis['p'][0]+basis['a2'][0],basis['p'][1]+basis['a2'][1])]
             state['points'] = pnts
             self.roi.setState(state)
-            self.roi.stateChanged()
+            self.roi.stateChanged(        #self.transform_img = self.affineWarp(self.maximg)
+        #self.current_fly = selection.parent().text(0)
+        #print self.current_fly
+        #flydir = '%s%s/'%(dba.root_dir,self.current_fly)
+        #import cPickle
+        #with open('tseries_data.cpkl','rb') as f:
+        #    tser_data = cPickle.load(f)
+        #tser_data = np.array(fly_db[fnum]['experiments'].values()[0]['tiff_data']['axon_framebase']['wb_frequency'])
+        #self.tserTrace.setData(tser_data)
+        )
             self.ui.commentBox.setPlainText(basis['commentBox'])
         except IOError:
             print 'no file'
@@ -626,16 +639,24 @@ class MainWindow(TemplateBaseClass):
         self.ui.frameScrollBar.setMaximum(np.shape(self.images)[0])
         self.plt.autoRange()
         #set transformImage
+        
 
     def showFrame(self):
-        img = self.gammaf(self.images[self.current_frame,:,:].astype(np.float32))
-        self.frameView.setImage(img.astype(np.float32))
-        self.ui.frameNumber.setText(str(self.current_frame))
-        self.ui.frameScrollBar.setValue(self.current_frame)
-        self.tpointLine.setValue(self.current_frame)
+        try:
+            if self.current_frame > 0:
+                img = self.gammaf(np.array(self.images[self.current_frame,:,:]).astype(np.float32))
+                self.frameView.setImage(img.astype(np.float32))
+                self.ui.frameNumber.setText(str(self.current_frame))
+                self.ui.frameScrollBar.setValue(self.current_frame)
+                self.tpointLine.setValue(self.current_frame)
+            else:
+                raise ValueError('Negative indexing not allowed')
+        except ValueError as er:
+            print er
+
 
     def affineWarp(self,roi):
-        src_f = self.thorax_view.plot_basis
+        src_f = self.thorax_view.plot_frame
         dst_f = self.thorax_view.model.basis
 
         dst_p0 = dst_f['a1'] + dst_f['p']
@@ -661,15 +682,13 @@ class MainWindow(TemplateBaseClass):
         
     def saveFit(self):
         import cPickle
-        savedata = dict(self.thorax_view.plot_basis)
+        savedata = dict(self.thorax_view.plot_frame)
         comment_text = self.ui.commentBox.toPlainText()
         savedata['commentBox'] = comment_text
 
-        flydir = '%s%s/'%(dba.root_dir,self.current_fly)
-        f = open(flydir+'basis_fits.cpkl','wb')
-        cPickle.dump(savedata,f)
-
-        f.close()
+        
+        with open(os.path.join(self.CurrentFlyPath,'rframe_fits.cpkl'),'wb') as f:
+            cPickle.dump(savedata,f)
 
     def loadFit(self):
         pass
@@ -772,7 +791,6 @@ class MainWindow(TemplateBaseClass):
        # self.add_model_signals()
 
 win = MainWindow()
-
 
 ## Start Qt event loop unless running in interactive mode or using pyside.
 if __name__ == '__main__':
