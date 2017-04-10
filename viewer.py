@@ -41,9 +41,9 @@ def fit_to_model(imchunk,model, mode = 'pinv',fit_pix_mask = None,baseline = Non
     import numpy as np
     #im_array = (imchunk-baseline)#/baseline
     if not(baseline is None):
-    	im_array = imchunk-baseline#/baseline
+        im_array = imchunk-baseline#/baseline
     else:
-    	im_array = imchunk
+        im_array = imchunk
     imshape = np.shape(im_array[0])
     im_array = im_array.reshape((-1,imshape[0]*imshape[1]))
     if mode == 'nnls':
@@ -321,11 +321,11 @@ class MainWindow(TemplateBaseClass):
         #muscle demixing
         self.ui.applyDemixing.clicked.connect(self.extract_signals)
         self.ui.subtractBackground.stateChanged.connect(self.subtractBackgroundChecked)
-    	self.subtract_background = self.ui.subtractBackground.isChecked()
+        self.subtract_background = self.ui.subtractBackground.isChecked()
 
     def subtractBackgroundChecked(self,i):
-    	self.subtract_background = self.ui.subtractBackground.isChecked()
-    	print self.subtract_background
+        self.subtract_background = self.ui.subtractBackground.isChecked()
+        print self.subtract_background
 
     def profileSelected(self,i):
         import cPickle
@@ -576,10 +576,10 @@ class MainWindow(TemplateBaseClass):
         self.CurrentFlyPath = os.path.split(self.CurrentHDF5FileName)[0]
         print self.CurrentFlyPath
         self.FlyFile = h5py.File(self.CurrentHDF5FileName,'r')
-        print self.FlyFile.keys()
+        key = self.FlyFile.keys()[0]
 
         #tfile = tifffile.TiffFile(self.CurrentTiffFileName)
-        self.images = self.FlyFile['ca_cam_1']#np.array(self.FlyFile['ca_cam_1'])
+        self.images = self.FlyFile[key]#np.array(self.FlyFile['ca_cam_1'])
         #self.maximg = np.max(self.images,axis = 0)
         #self.transform_img = self.affineWarp(self.maximg)
         #self.current_fly = selection.parent().text(0)
@@ -738,7 +738,8 @@ class MainWindow(TemplateBaseClass):
             #construct a mask do reduce the projection to just the data within the model
             fit_pix_mask = np.sum(model,axis=0) > 0
         if model_type == 'volumetric':
-            model_data = h5py.File('models/%s/components/flatened_components_10x_nikon.hdf5'%(self.cur_model),'r')
+            unmixing_filters = '/media/imager/FlyDataD/src/muscle_model/unmixing_filters/NA_0.45_200mm_Tube_FN1/flatened_model.hdf5'
+            model_data = h5py.File(unmixing_filters,'r')
             #muscles = model_data.keys()
             model_muscles = [np.array(model_data[muscle]) for muscle in muscles]
             output_shapes = [output_shape for muscle in muscles]
@@ -757,11 +758,11 @@ class MainWindow(TemplateBaseClass):
         #    import cPickle
         #    baseline_range = cPickle.load(f)['baseline_F']
         if self.subtract_background:
-        	baseline_range = self.epoch_dict['background']
-        	baseln = np.mean(imgs[baseline_range],axis = 0)
+            baseline_range = self.epoch_dict['background']
+            baseln = np.mean(imgs[baseline_range],axis = 0)
         else:
-        	baseln = None 
-        	print 'here'
+            baseln = None 
+            print 'here'
         chnk_sz = 100
         num_samps = np.shape(imgs)[0]
         print num_samps
@@ -775,7 +776,7 @@ class MainWindow(TemplateBaseClass):
         
         fits = map(fit_to_model,img_chunks,models,modes,fit_pix_masks,baselines)
         #fit = fit_to_model(imchunk,model,mode = 'nnls',fit_pix_mask = fit_pix_mask)
-        fname = os.path.join(self.CurrentDirPath,'model_fits.cpkl')
+        fname = os.path.join(self.CurrentFlyPath,'model_fits.cpkl')
         savedict = dict()
         import cPickle
         with open(fname,'wb') as f:
