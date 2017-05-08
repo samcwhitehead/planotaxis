@@ -13,6 +13,9 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui#QStringList,QString
 import numpy as np
 import os
+import os
+this_dir, this_filename = os.path.split(__file__)
+model_path = os.path.join(this_dir, "models")
 
 pg.mkQApp()
 
@@ -220,6 +223,7 @@ class RefrenceFrameROI(pg.ROI):
         return state
 
     def setState(self,state):
+        print state
         pg.ROI.setState(self,state,update = False)
         #state = pg.ROI.saveState(self)
         for h,p in zip(self.getHandles(),state['points']):
@@ -330,7 +334,7 @@ class MainWindow(TemplateBaseClass):
     def profileSelected(self,i):
         import cPickle
         profile = self.ui.profileselectBox.currentText()
-        with open('models/%s/profiles/%s'%(self.cur_model,profile),'rb') as f:
+        with open(model_path + '/%s/profiles/%s'%(self.cur_model,profile),'rb') as f:
             profile_data = cPickle.load(f)
         for component in self.loadedComponents:
             if component['name'] in profile_data['selected_components']:
@@ -343,11 +347,11 @@ class MainWindow(TemplateBaseClass):
 
     def updateProfileList(self):
         import os
-        profile_list = os.listdir('models/%s/profiles'%(self.cur_model))
+        profile_list = os.listdir(model_path + '/%s/profiles'%(self.cur_model))
         if len(profile_list) == 0:
             print 'creating default profile'
             import cPickle
-            with open('models/%s/profiles/default.cpkl'%(self.cur_model),'wb') as f:
+            with open(model_path + '/%s/profiles/default.cpkl'%(self.cur_model),'wb') as f:
                 cPickle.dump({'selected_components':[]},f)
             self.updateProfileList()
         else:
@@ -358,7 +362,7 @@ class MainWindow(TemplateBaseClass):
             self.ui.profileselectBox.setCurrentIndex(index)
 
     def saveProfile(self):
-        profile_dir = 'models/%s/profiles/'%(self.cur_model)
+        profile_dir = model_path + '/%s/profiles/'%(self.cur_model)
         name = str(self.ui.profileName.text())
         print profile_dir + name
         f = open(profile_dir + name,'wb')
@@ -391,9 +395,9 @@ class MainWindow(TemplateBaseClass):
 
     def modelSelected(self,i):
         import cPickle
-        self.cur_model = os.listdir('models')[i]
+        self.cur_model = os.listdir(model_path)[i]
         #print self.cur_modelcomponentsModel
-        with open('models/%s/outlines.cpkl'%(self.cur_model),'rb') as f:
+        with open(model_path + '/%s/outlines.cpkl'%(self.cur_model),'rb') as f:
             self.outlines = cPickle.load(f)
         for key in self.outlines.keys():
             print key
@@ -407,14 +411,14 @@ class MainWindow(TemplateBaseClass):
     
     def roiClicked(self,item):
         #print item.mname
-        print 'here'
+        #print 'here'
         color = pg.QtGui.QColorDialog.getColor()
         #self.color_dict[item.mname] = color
         #self.update_tser_plot()
 
     def updateModelList(self):
         import os
-        for mstr in os.listdir('models'):
+        for mstr in os.listdir(model_path):
             self.ui.modelselectBox.addItem(mstr)
 
     def newEpoch(self):
@@ -685,13 +689,24 @@ class MainWindow(TemplateBaseClass):
         savedata = dict(self.thorax_view.plot_frame)
         comment_text = self.ui.commentBox.toPlainText()
         savedata['commentBox'] = comment_text
-
         
         with open(os.path.join(self.CurrentFlyPath,'rframe_fits.cpkl'),'wb') as f:
             cPickle.dump(savedata,f)
 
     def loadFit(self):
-        pass
+        import cPickle
+        with open(os.path.join(self.CurrentFlyPath,'rframe_fits.cpkl'),'rb') as f:
+            loaddata = cPickle.load(f)
+        print loaddata        
+        state = self.roi.getState()
+        rf = loaddata
+        pnts = [(rf['p'][0]+rf['a1'][0],rf['p'][1]+rf['a1'][1]),
+                 (rf['p'][0],rf['p'][1]),
+                 (rf['p'][0]+rf['a2'][0],rf['p'][1]+rf['a2'][1])]
+        state['points'] = pnts
+        self.roi.setState(state)
+        self.roi.stateChanged()
+        #self.thorax_view.update_basis(loaddata)
         #print self.ui.fileTree.selectedItems()[0].data(0,QtCore.Qt.UserRole).toPyObject()
 
     def extract_signals(self):
@@ -762,7 +777,7 @@ class MainWindow(TemplateBaseClass):
             baseln = np.mean(imgs[baseline_range],axis = 0)
         else:
             baseln = None 
-            print 'here'
+            #print 'here'
         chnk_sz = 100
         num_samps = np.shape(imgs)[0]
         print num_samps
@@ -788,6 +803,7 @@ class MainWindow(TemplateBaseClass):
         #self.signalshelf = shelve.open(fname) 
         print np.shape(np.hstack(fits))
         print muscles
+        print 'Done!'
         #[self.signalshelf.update({str(mname):sig}) for sig,mname in zip(np.hstack(fits),muscles)]
        # self.add_model_signals()
 
