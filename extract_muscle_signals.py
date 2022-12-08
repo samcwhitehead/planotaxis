@@ -19,7 +19,7 @@ import numpy as np
 # have to do a little work to import muscle_model
 this_dir, this_filename = os.path.split(__file__)
 model_path = os.path.join(this_dir, "models")
-sys.path.insert(0, os.path.join(model_path, "muscle_model"))
+# sys.path.insert(0, os.path.join(model_path, "muscle_model"))
 import muscle_model as mm
 
 ################################################################################################
@@ -270,6 +270,7 @@ def run_gcamp_extraction(fly_id, fly_db_path=FLY_DB_PATH, fn_str=FN_STR, fn_ext=
 ########################### RUN SCRIPT #########################################################
 ################################################################################################
 if __name__ == '__main__':
+    print(aaaaaa) 
     # read in flies from terminal input or specified list
     if not FLIES:
         flies = [int(x) for x in sys.argv[1:]]
