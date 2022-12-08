@@ -573,7 +573,8 @@ class MainWindow(TemplateBaseClass):
         self.CurrentHDF5FileName = str(QtGui.QFileDialog.getOpenFileName(self, 
                                         'Dialog Title', 
                                         '')[0])
-        print self.CurrentHDF5FileName
+        self.image_prefix = self.CurrentHDF5FileName.split('/')[-1].split('.hdf5')[0]
+        print self.image_prefix
         #tfile = tifffile.TiffFile(self.CurrentTiffFileName)
         #self.images = np.array(fly_db[fnum]['experiments'].values()[0]['tiff_data']['images'])
         import os
@@ -583,7 +584,7 @@ class MainWindow(TemplateBaseClass):
         key = self.FlyFile.keys()[0]
 
         #tfile = tifffile.TiffFile(self.CurrentTiffFileName)
-        self.images = self.FlyFile[key]#np.array(self.FlyFile['ca_cam_1'])
+        self.images = np.array(self.FlyFile[key])#np.array(self.FlyFile['ca_cam_1'])
         #self.maximg = np.max(self.images,axis = 0)
         #self.transform_img = self.affineWarp(self.maximg)
         #self.current_fly = selection.parent().text(0)
@@ -690,12 +691,12 @@ class MainWindow(TemplateBaseClass):
         comment_text = self.ui.commentBox.toPlainText()
         savedata['commentBox'] = comment_text
         
-        with open(os.path.join(self.CurrentFlyPath,'rframe_fits.cpkl'),'wb') as f:
+        with open(os.path.join(self.CurrentFlyPath,self.image_prefix + '_rframe_fits.cpkl'),'wb') as f:
             cPickle.dump(savedata,f)
 
     def loadFit(self):
         import cPickle
-        with open(os.path.join(self.CurrentFlyPath,'rframe_fits.cpkl'),'rb') as f:
+        with open(os.path.join(self.CurrentFlyPath, self.image_prefix + '_rframe_fits.cpkl'),'rb') as f:
             loaddata = cPickle.load(f)
         print loaddata        
         state = self.roi.getState()
@@ -742,13 +743,13 @@ class MainWindow(TemplateBaseClass):
         #exp_record = fly_record['experiments'].values()[0]
         #tfile = tifffile.TiffFile('image_stack.tif')
         #imgs = tfile.asarray()
-        imgs = self.images
+        imgs = np.array(self.images)
         #the output shape of the warped model
         output_shape = np.shape(imgs[0])
         if model_type == 'masks':
             #get the mask of all the muscles for fit
             masks = confocal_model.get_masks(fly_frame,np.shape(imgs[0]))
-            #create the model using only the muscles that express in a given line
+            #create the model using only the muscle Childcare/Lesson Combo: that express in a given line
             model = np.vstack([masks[mask_key].T.ravel().astype(float) for mask_key in muscles])
             #construct a mask do reduce the projection to just the data within the model
             fit_pix_mask = np.sum(model,axis=0) > 0
@@ -791,7 +792,8 @@ class MainWindow(TemplateBaseClass):
         
         fits = map(fit_to_model,img_chunks,models,modes,fit_pix_masks,baselines)
         #fit = fit_to_model(imchunk,model,mode = 'nnls',fit_pix_mask = fit_pix_mask)
-        fname = os.path.join(self.CurrentFlyPath,'model_fits.cpkl')
+        
+        fname = os.path.join(self.CurrentFlyPath,self.image_prefix+ '_model_fits.cpkl')
         savedict = dict()
         import cPickle
         with open(fname,'wb') as f:
