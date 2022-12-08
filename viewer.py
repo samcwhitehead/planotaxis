@@ -10,6 +10,14 @@ tools/rebuildUi.py script).
 #import initExample ## Add path to library (just for examples; you do not need this)
 
 import pyqtgraph as pg
+
+# WBD
+# ------------------------------------------------------------------------
+import pyqtgraph.Qt
+print 'pyqtgraph.Qt.USE_PYSIDE = ', pyqtgraph.Qt.USE_PYSIDE
+print 'pyqtgraph.Qt.QtVersion  = ', pyqtgraph.Qt.QtVersion
+# ------------------------------------------------------------------------
+
 from pyqtgraph.Qt import QtCore, QtGui#QStringList,QString
 import numpy as np
 import os
@@ -67,6 +75,7 @@ def fit_to_model(imchunk,model, mode = 'pinv',fit_pix_mask = None,baseline = Non
             fits = np.dot(pinv(model[:,fit_pix_mask]).T,im[:,fit_pix_mask].T)
         else:
             fits = np.dot(pinv(model).T,im)
+    print fits
     return fits
 
 #extract the data give the fly_path and 'line_name'
@@ -451,7 +460,7 @@ class MainWindow(TemplateBaseClass):
         self.ui.epochName.setText(ep.epoch_name)
         self.updateCurrentEpochState()
 
-    def updateEpochFromText(self):
+    def updateEpochFromText(self):#negative indexing
         k = str(self.ui.epochName.text())
         ep_plot = self.epochPlots[k]
         sta = int(self.ui.epochStart.text())
@@ -786,7 +795,8 @@ class MainWindow(TemplateBaseClass):
         
         img_chunks = [np.array(imgs[chunk]) for chunk in chunks]
         models = [model for chunk in chunks]
-        modes = ['nnls' for chunk in chunks]
+        #modes = ['nnls' for chunk in chunks]
+        modes = ['pinv' for chunk in chunks]
         fit_pix_masks = [fit_pix_mask for chunk in chunks]
         baselines = [baseln for chunk in chunks]
         
