@@ -3,4 +3,3 @@ Program for aligning a 2d projection of a 3d anatomical model onto an image plan
 
 Requires the module "muscle_model"
 
-Test SSH
