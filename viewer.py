@@ -594,12 +594,11 @@ class MainWindow(TemplateBaseClass):
 
         #tfile = tifffile.TiffFile(self.CurrentTiffFileName)
         self.images = np.array(self.FlyFile[key])
-#        # START edit by SCW, 12/13/2022
-#        print('Look here. image shape is ', self.images.shape)
-#        if self.images.shape[2] > self.images.shape[1]:
-#            self.images = np.transpose(self.images, (0, 2, 1))
-#            # img = np.fliplr(np.transpose(img)) # change made by Johan
-#        # END edit by SCW, 12/13/2022
+        # START edit by SCW, 12/13/2022
+        print('Look here. image shape is ', self.images.shape)
+        if self.images.shape[2] > self.images.shape[1]:
+            self.images = np.transpose(self.images, (0, 2, 1))
+        # END edit by SCW, 12/13/2022
         
         #self.maximg = np.max(self.images,axis = 0)
         #self.transform_img = self.affineWarp(self.maximg)
@@ -666,6 +665,9 @@ class MainWindow(TemplateBaseClass):
         try:
             if self.current_frame > 0:
                 img = self.gammaf(np.array(self.images[self.current_frame,:,:]).astype(np.float32))
+                # START edit by SCW, 12/13/2022
+                img = np.fliplr(img)
+                # END edit by SCW, 12/13/2022
                 self.frameView.setImage(img.astype(np.float32))
                 self.ui.frameNumber.setText(str(self.current_frame))
                 self.ui.frameScrollBar.setValue(self.current_frame)
