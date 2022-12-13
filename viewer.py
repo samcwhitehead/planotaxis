@@ -594,12 +594,12 @@ class MainWindow(TemplateBaseClass):
 
         #tfile = tifffile.TiffFile(self.CurrentTiffFileName)
         self.images = np.array(self.FlyFile[key])
-        # START edit by SCW, 12/13/2022
-        print('Look here. image shape is ', self.images.shape)
-        if self.images.shape[2] > self.images.shape[1]:
-            self.images = np.transpose(self.images, (0, 2, 1))
-            # img = np.fliplr(np.transpose(img)) # change made by Johan
-        # END edit by SCW, 12/13/2022
+#        # START edit by SCW, 12/13/2022
+#        print('Look here. image shape is ', self.images.shape)
+#        if self.images.shape[2] > self.images.shape[1]:
+#            self.images = np.transpose(self.images, (0, 2, 1))
+#            # img = np.fliplr(np.transpose(img)) # change made by Johan
+#        # END edit by SCW, 12/13/2022
         
         #self.maximg = np.max(self.images,axis = 0)
         #self.transform_img = self.affineWarp(self.maximg)
