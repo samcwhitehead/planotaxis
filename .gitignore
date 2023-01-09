@@ -162,3 +162,4 @@ cython_debug/
 # Custom (ignore code from others that I should leave on the machine)
 /*ponce*
 models/muscle_model/
+scratch/

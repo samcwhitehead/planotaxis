@@ -594,10 +594,6 @@ class MainWindow(TemplateBaseClass):
 
         #tfile = tifffile.TiffFile(self.CurrentTiffFileName)
         self.images = np.array(self.FlyFile[key])
-        # START edit by SCW, 12/13/2022
-        if self.images.shape[2] > self.images.shape[1]:
-            self.images = np.transpose(self.images, (0, 2, 1))
-        # END edit by SCW, 12/13/2022
         
         #self.maximg = np.max(self.images,axis = 0)
         #self.transform_img = self.affineWarp(self.maximg)
@@ -664,9 +660,12 @@ class MainWindow(TemplateBaseClass):
         try:
             if self.current_frame > 0:
                 img = self.gammaf(np.array(self.images[self.current_frame,:,:]).astype(np.float32))
-                # START edit by SCW, 12/13/2022
-                img = np.fliplr(img)
-                # END edit by SCW, 12/13/2022
+                # typically need to do vertical flip (I think this has to do with the way ROS saves images)
+                img = np.flipud(img)
+                # check if we need to rotated image 90 degrees
+                if img.shape[1] > img.shape[0]:
+                    img = np.transpose(img)
+
                 self.frameView.setImage(img.astype(np.float32))
                 self.ui.frameNumber.setText(str(self.current_frame))
                 self.ui.frameScrollBar.setValue(self.current_frame)
@@ -771,7 +770,9 @@ class MainWindow(TemplateBaseClass):
             #construct a mask do reduce the projection to just the data within the model
             fit_pix_mask = np.sum(model,axis=0) > 0
         if model_type == 'volumetric':
-            unmixing_filters = '/media/imager/FlyDataD/src/muscle_model/unmixing_filters/NA_0.45_200mm_Tube_FN1/flatened_model.hdf5'
+            parent_dir = os.path.abspath(os.path.join(this_dir, '..'))
+            unmixing_filters = os.path.join(parent_dir, 'muscle_model', 'unmixing_filters',
+                                            'NA_0.45_200mm_Tube_FN1', 'flatened_model.hdf5')
             model_data = h5py.File(unmixing_filters,'r')
             #muscles = model_data.keys()
             model_muscles = [np.array(model_data[muscle]) for muscle in muscles]
@@ -796,6 +797,7 @@ class MainWindow(TemplateBaseClass):
         else:
             baseln = None 
             #print 'here'
+
         chnk_sz = 100
         num_samps = np.shape(imgs)[0]
         print num_samps
@@ -803,7 +805,7 @@ class MainWindow(TemplateBaseClass):
         
         img_chunks = [np.array(imgs[chunk]) for chunk in chunks]
         models = [model for chunk in chunks]
-        #modes = ['nnls' for chunk in chunks]
+        # modes = ['nnls' for chunk in chunks]
         modes = ['pinv' for chunk in chunks]
         fit_pix_masks = [fit_pix_mask for chunk in chunks]
         baselines = [baseln for chunk in chunks]
