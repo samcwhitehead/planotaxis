@@ -28,13 +28,13 @@ model_path = os.path.join(this_dir, "models")
 FLY_DB_PATH = '/media/sam/SamData/FlyDB'  # directory containing fly data
 # FLY_DB_PATH = '/media/imager/DataExternal/FlyDB'
 
-FLIES = [24]  # list of flies to analyze. If None, look for command line input
+FLIES = []  # list of flies to analyze. If None, look for command line input
 FOLDER_STR = 'Fly%04d'  # general format of folders containing fly data -- only used if FLIES contains ints
-FN_STR = 'ca_cam'  # string to search for when looking for files containing image data
+FN_STR = 'ca_camera'  # string to search for when looking for files containing image data
 FN_EXT = '.hdf5'  # extension to search for when looking for files containing image data. *** Only hdf5 supported!
-MIN_FILE_SIZE = 1e6  # minimum camera data file size (in bytes)
+MIN_FILE_SIZE = 1e7  # minimum camera data file size (in bytes)
 MODEL_PATH = model_path  # directory containing Thad's muscle models
-DRIVER = 'GMR22H05'
+DRIVER = 'GMR39E01'
 
 IMG_KEY = 'cam_imgs'  # key name in hdf5 file for images. if None, we'll try to guess
 T_KEY = 'cam_tstamps'  # key name in hdf5 file for camera time stamps. if None, we'll skip this
@@ -259,7 +259,7 @@ def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volum
 # ------------------------------------------------------------------------------------------------------------
 def run_gcamp_extraction(fly_id, fly_db_path=FLY_DB_PATH, fn_str=FN_STR, fn_ext=FN_EXT, save_flag=True,
                          folder_str=FOLDER_STR, min_file_size=MIN_FILE_SIZE, img_key=IMG_KEY, t_key=T_KEY,
-                         chunk_size=CHUNK_SIZE, fit_mode=FIT_MODE):
+                         chunk_size=CHUNK_SIZE, fit_mode=FIT_MODE, driver=DRIVER):
     """
     A little wrapper function to run GCaMP muscle signal extraction on a given fly
     """
@@ -340,10 +340,14 @@ def run_gcamp_extraction(fly_id, fly_db_path=FLY_DB_PATH, fn_str=FN_STR, fn_ext=
                 tstamps = None
 
         # run analysis on images
-        signals = extract_gcamp_signals(imgs, rframe, chunk_sz=chunk_size, fit_mode=fit_mode)
+        signals = extract_gcamp_signals(imgs, rframe, chunk_sz=chunk_size, fit_mode=fit_mode, driver=driver)
 
         # ** add time to dictionary
         signals['t'] = tstamps
+
+        # # add rframe info as well
+        # for key in rframe.keys():
+        #     signals['rframe_%s'%(key)] = rframe[key]
 
         # --------------------------------------
         # save output (all)?

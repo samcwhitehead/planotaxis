@@ -19,8 +19,6 @@ print 'pyqtgraph.Qt.QtVersion  = ', pyqtgraph.Qt.QtVersion
 # ------------------------------------------------------------------------
 
 from pyqtgraph.Qt import QtCore, QtGui#QStringList,QString
-import numpy as np
-import os
 import os
 this_dir, this_filename = os.path.split(__file__)
 model_path = os.path.join(this_dir, "models")
@@ -44,9 +42,6 @@ import muscle_model as mm
 default_rframe_data = {'a1': np.array([ 51.5848967 ,  -5.93928407]),
                        'a2': np.array([ -0.09151179,  88.42505672]),
                        'p': np.array([ 26.66908747,  34.43488385])}
-
-#stacked_muscles = tifffile.TiffFile('stacked_muscles.tiff')
-#overlay = np.transpose(stacked_muscles.asarray(),(1,0,2))[:,::-1].astype(np.float32)
 
 def fit_to_model(imchunk,model, mode = 'pinv',fit_pix_mask = None,baseline = None):
     import numpy as np
@@ -568,20 +563,10 @@ class MainWindow(TemplateBaseClass):
         self.thorax_view.plot(self.thorax_view.plot_frame,self.plt)
 
     def loadFrames(self):
-        #selection = self.ui.fileTree.selectedItems()[0]
-        #self.current_fly = selection.parent().text(0)
-        #fnum = int(self.current_fly.split('Fly')[1])
-        #print fnum
-        #fnum = selection.data(0,QtCore.Qt.UserRole)
-        #print 'here'
-        #print int(fnum)
-
-        #self.images = np.array(fly_db[fnum]['experiments'].values()[0]['tiff_data']['images'])
-        #tfile = tifffile.TiffFile('image_stack.tif')
-        #self.images = tfile.asarray()
         self.CurrentHDF5FileName = str(QtGui.QFileDialog.getOpenFileName(self, 
-                                        'Dialog Title', 
+                                        'Dialog Title',
                                         '')[0])
+
         self.image_prefix = self.CurrentHDF5FileName.split('/')[-1].split('.hdf5')[0]
         print self.image_prefix
         #tfile = tifffile.TiffFile(self.CurrentTiffFileName)
