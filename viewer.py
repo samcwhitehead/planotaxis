@@ -403,7 +403,7 @@ class MainWindow(TemplateBaseClass):
         #print self.cur_modelcomponentsModel
         with open(model_path + '/%s/outlines.cpkl'%(self.cur_model),'rb') as f:
             self.outlines = cPickle.load(f)
-        for key in self.outlines.keys():
+        for key in sorted(self.outlines.keys()):
             print key
             item = QtGui.QStandardItem(key)
             #check = 1 if np.random.randint(0, 1) == 1 else 0
