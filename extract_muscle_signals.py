@@ -100,7 +100,7 @@ def load_rframe_fits(data_path, side, file_suffix=''):
 
             # write data to dict
             if isinstance(data, np.ndarray):
-                rframe_dict[key] = np.unique(data)
+                rframe_dict[key] = np.unique(data, axis=0)[0]
             else:
                 rframe_dict[key] = data
 
