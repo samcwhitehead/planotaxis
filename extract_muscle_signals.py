@@ -42,6 +42,8 @@ T_KEY = 'cam_tstamps'  # key name in hdf5 file for camera time stamps. if None, 
 CHUNK_SIZE = 100  # how many images to process at a time (should also correspond to hdf5 storage)
 FIT_MODE = 'pinv'  # 'pinv' or 'nnls' ; Thad's code seems to default to pinv
 
+OVERWRITE_FLAG = False  # overwrite existing analyses if True
+
 
 ################################################################################################
 ############################ HELPER FUNCTION(S) ################################################
@@ -53,10 +55,23 @@ def load_rframe_fits(data_path, side, file_suffix=''):
 
     Should output a dictionary with the rframe values
     """
-    # first, get all the files in the data folder that could potentially contain rframe fits
+    # first check for cpkl files, as would be output by viewer GUI. should use these over others
+    rframe_paths_cpkl = glob.glob(os.path.join(data_path, '*%s_rframe_fits.cpkl' %(file_suffix)))
+
+    # only take ones that use the correct side (unlike the hdf5 files, we will not have
+    # cpkl files containing rframes for both sides, due to structure of Thad's code)
+    rframe_paths_cpkl = [p for p in rframe_paths_cpkl if (side in p)]
+    if len(rframe_paths_cpkl) == 1:
+        with open(rframe_paths_cpkl[0], 'rb') as pf:
+            rframe_dict = cPickle.load(pf)
+
+        return rframe_dict
+
+    # --------------------------------------------------------------------------------------------
+    # otherwise, get all the files in the data folder that could potentially contain rframe fits
     rframe_paths = glob.glob(os.path.join(data_path, '*%s_rframe_fits.hdf5' %(file_suffix)))
 
-    # define list of variables we care about (later functions expect certain key/value pairings
+    # define list of variables we care about (later functions expect certain key/value pairings)
     out_keys = ['p', 'a1', 'a2', 'A', 'Ainv', 'components']
 
     # intialize output
@@ -80,9 +95,16 @@ def load_rframe_fits(data_path, side, file_suffix=''):
                 return rframe_dict
             else:
                 side_key = side_keys[0]
-    else:
+
+    elif len(rframe_paths) > 1:
         # in this case, assume we have one file per side, and read out that way
         rframe_path = [p for p in rframe_paths if (side in p)][0]
+
+    else:
+        # in this case, we don't have anything saved. would ideally like to have this open a 'viewer' GUI window
+        # (but that might be more work than is worth it)
+        raise Exception('Cannot find model fit to load -- must generate this')
+
 
     # now that we've hopefully got the right path/key info, read data
     # NB: need to tread numeric and list data differently
@@ -259,7 +281,8 @@ def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volum
 # ------------------------------------------------------------------------------------------------------------
 def run_gcamp_extraction(fly_id, fly_db_path=FLY_DB_PATH, fn_str=FN_STR, fn_ext=FN_EXT, save_flag=True,
                          folder_str=FOLDER_STR, min_file_size=MIN_FILE_SIZE, img_key=IMG_KEY, t_key=T_KEY,
-                         chunk_size=CHUNK_SIZE, fit_mode=FIT_MODE, driver=DRIVER):
+                         chunk_size=CHUNK_SIZE, fit_mode=FIT_MODE, driver=DRIVER,
+                         overwrite_flag=OVERWRITE_FLAG):
     """
     A little wrapper function to run GCaMP muscle signal extraction on a given fly
     """
@@ -286,43 +309,26 @@ def run_gcamp_extraction(fly_id, fly_db_path=FLY_DB_PATH, fn_str=FN_STR, fn_ext=
     for fn in cam_data_fns:
         # check if analysis has already been performed
         fn_no_ext = os.path.splitext(fn)[0]
-        if os.path.exists(os.path.join(fly_path, fn_no_ext + save_str + '.hdf5')):
+        if os.path.exists(os.path.join(fly_path, fn_no_ext + save_str + '.hdf5')) and not overwrite_flag:
             print('Already analyzed %s -- skipping' % (fn))
             continue
 
         # otherwise print update for current file
         print('Analyzing %s ...' % (fn))
 
+        # --------------------------------------------------------
+        # get side of the fly that we're currently analyzing
+        if 'left' in fn:
+            side = 'left'
+        elif 'right' in fn:
+            side = 'right'
+        else:
+            print('Could not determine imaging side (needed to load rframe files)')
+            return
+
         # --------------------------------------------
         # load reference frame fits (or make them)
-        rframe_fn = os.path.splitext(fn)[0] + '_rframe_fits'
-        rframe_glob = glob.glob(os.path.join(fly_path, '*' + file_suffix[1:] + '_rframe_fits.hdf5'))
-
-        if os.path.exists(os.path.join(fly_path, rframe_fn + '.cpkl')):
-            with open(os.path.join(fly_path, rframe_fn + '.cpkl'), 'rb') as pf:
-                rframe = cPickle.load(pf)
-        elif os.path.exists(os.path.join(fly_path, rframe_fn + '.hdf5')):
-            # for this option (which I think is ultimately better) we would need to save an extra rframe file for each
-            # camera, which is not what we're doing now (based on how the rostopics are published)
-            print('Under construction!')
-        elif len(rframe_glob) > 0:
-            # in this case, we have rframe hdf5 files stored with different filename convention from cam files
-            # first figure out which side we're dealing with
-            if 'left' in fn:
-                side = 'left'
-            elif 'right' in fn:
-                side = 'right'
-            else:
-                print('Could not determine imaging side (needed to load rframe files)')
-                return
-            # then load rframe using helper function
-            rframe = load_rframe_fits(fly_path, side=side, file_suffix=file_suffix)
-        else:
-            # in this case, we don't have anything saved. would ideally like to have this open a 'viewer' GUI window
-            # (but that might be more work than is worth it)
-            print('Cannot find model fit to load -- must generate this')
-            print('Under construction! For now, use viewer.py GUI')
-            return
+        rframe = load_rframe_fits(fly_path, side=side, file_suffix=file_suffix)
 
         # --------------------------------------------
         # load images for current data file
