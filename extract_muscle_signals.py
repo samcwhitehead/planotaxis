@@ -222,6 +222,8 @@ def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volum
     with open(os.path.join(model_dir, '%s'%(model_name), 'profiles', '%s.cpkl'%(driver)), 'rb') as ff:
         driver_profile = cPickle.load(ff)
     muscles = driver_profile['selected_components']
+    print(muscles)
+    print(aaa)
 
     # make sure we've converted images to a numpy array
     if not isinstance(imgs, (np.ndarray, np.generic)):
@@ -304,6 +306,9 @@ def run_gcamp_extraction(fly_id, fly_db_path=FLY_DB_PATH, fn_str=FN_STR, fn_ext=
     # remove files that are too small (this is mostly for me, since I'm still saving hdf5 files for cameras I'm not
     # using. should fix this eventually, but until then this workaround should be okay)
     cam_data_fns = [f for f in cam_data_fns if os.path.getsize(os.path.join(fly_path, f)) > min_file_size]
+
+    # also skip over any files that have suffices we use
+    cam_data_fns = [f for f in cam_data_fns if not f.endswith('model_fits%s'%fn_ext)]
 
     # loop over camera data files (NB: we're often expecting one for left and one for right)
     for fn in cam_data_fns:
