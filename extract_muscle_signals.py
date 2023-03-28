@@ -222,8 +222,6 @@ def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volum
     with open(os.path.join(model_dir, '%s'%(model_name), 'profiles', '%s.cpkl'%(driver)), 'rb') as ff:
         driver_profile = cPickle.load(ff)
     muscles = driver_profile['selected_components']
-    print(muscles)
-    print(aaa)
 
     # make sure we've converted images to a numpy array
     if not isinstance(imgs, (np.ndarray, np.generic)):
