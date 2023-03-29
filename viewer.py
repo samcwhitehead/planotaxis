@@ -43,105 +43,108 @@ default_rframe_data = {'a1': np.array([ 51.5848967 ,  -5.93928407]),
                        'a2': np.array([ -0.09151179,  88.42505672]),
                        'p': np.array([ 26.66908747,  34.43488385])}
 
-def fit_to_model(imchunk,model, mode = 'pinv',fit_pix_mask = None,baseline = None):
-    import numpy as np
-    #im_array = (imchunk-baseline)#/baseline
-    if not(baseline is None):
-        im_array = imchunk-baseline#/baseline
-    else:
-        im_array = imchunk
-    imshape = np.shape(im_array[0])
-    im_array = im_array.reshape((-1,imshape[0]*imshape[1]))
-    if mode == 'nnls':
-        fits = np.empty((np.shape(model)[0],np.shape(im_array)[0]))
-        for i,im2 in enumerate(im_array):
-            im = im2.copy()
-            im[~np.isfinite(im)] = 0
-            from scipy.optimize import nnls
-            if not(fit_pix_mask is None):
-                fits[:,i] = nnls(model[:,fit_pix_mask].T,im[fit_pix_mask])[0]
-            else:
-                fits[:,i] = nnls(model.T,im)[0]
-    else:
-        im = im_array
-        print np.shape(im_array)
-        from numpy.linalg import pinv
-        if not(fit_pix_mask is None):
-            fits = np.dot(pinv(model[:,fit_pix_mask]).T,im[:,fit_pix_mask].T)
-        else:
-            fits = np.dot(pinv(model).T,im)
-    print fits
-    return fits
+# import functions from extract_muscle_signals
+from extract_muscle_signals import fit_to_model, extract_gcamp_signals
 
-#extract the data give the fly_path and 'line_name'
-def extract_signals(fly):
-    print self.thorax_view.model
-    return
-    import muscle_model as mm
-    import numpy as np
-    import h5py
-    import cv2
-    model_type = 'volumetric'
-    #model_type = 'masks'
-    #load the reference frame of the cofocal data and that of the imaged fly
-    confocal_model = mm.GeometricModel(filepath = 'model_data.cpkl')
-    #confocal_view = mm.ModelViewMPL(confocal_model)
-    pkname = 'rframe_fits.cpkl'
-    fly_frame = mm.Frame();fly_frame.load(pkname)
-    #get the transformation matrix A and compose with a scaling using a scaling of s
-    #to construct a transformation for homogenious vectors
-    s = 1 #scale
-    A = fly_frame.get_transform(confocal_model.frame)
-    Ap = np.dot([[s,0.0,0],[0,s,0],[0,0,1]],A)
-    #parse the GMR genotype to get the line name
-    line_name = parse_GMR_genotype(fly.get_genotype())['gal4']
-    #get the list of muscles for a given line
-    muscles = get_muscle_list(line_name)
-    muscles = [m for m in muscles if not('DVM' in m) and not('DLM' in m) and not('ps' in m)]
-    #get a reference to the image data
-    #fly_record = h5py.File(fly.fly_path + 'fly_record.hdf5','r')
-    #exp_record = fly_record['experiments'].values()[0]
-    imgs = exp_record['tiff_data']['images']
-    #the output shape of the warped model
-    output_shape = np.shape(imgs[0])
-    if model_type == 'masks':
-        #get the mask of all the muscles for fit
-        masks = confocal_model.get_masks(fly_frame,np.shape(imgs[0]))
-        #create the model using only the muscles that express in a given line
-        model = np.vstack([masks[mask_key].T.ravel().astype(float) for mask_key in muscles])
-        #construct a mask do reduce the projection to just the data within the model
-        fit_pix_mask = np.sum(model,axis=0) > 0
-    if model_type == 'volumetric':
-        model_data = h5py.File(gd.muscle_anatomy_dir + 'flatened_model.hdf5','r')
-        model_muscles = [np.array(model_data[muscle]) for muscle in muscles]
-        output_shapes = [output_shape for muscle in muscles]
-        transforms = [Ap[:-1,:] for muscle in muscles]
-        model = v.map(cv2.warpAffine,model_muscles,transforms,output_shapes)
-        model = np.vstack([muscle.T.ravel() for muscle in model])
-        #model = np.vstack([cv2.warpAffine(np.array(model_data[muscle]), \
-        #                               Ap[:-1,:],output_shape).T.ravel() \
-        #                for muscle in muscles])
-        fit_pix_mask = np.ones_like(model[0]) > 0
-
-    f = open(fly.fly_path + 'epoch_data.cpkl')
-    import cPickle
-    baseline_range = cPickle.load(f)['baseline_F']
-    f.close()
-    baseln = np.mean(imgs[baseline_range],axis = 0)
-    
-    chnk_sz = 2000
-    num_samps = np.shape(imgs)[0]
-    chunks = [slice(x,x+chnk_sz if x+chnk_sz < num_samps else num_samps) for x in range(0,num_samps,chnk_sz)]
-    
-    img_chunks = [np.array(imgs[chunk]) for chunk in chunks]
-    models = [model for chunk in chunks]
-    modes = ['nnls' for chunk in chunks]
-    fit_pix_masks = [fit_pix_mask for chunk in chunks]
-    baselines = [baseln for chunk in chunks]
-    
-    fits = v.map(fit_to_model,img_chunks,models,modes,fit_pix_masks,baselines)
-    #fit = fit_to_model(imchunk,model,mode = 'nnls',fit_pix_mask = fit_pix_mask)
-    return np.hstack(fits),muscles
+# def fit_to_model(imchunk,model, mode = 'pinv',fit_pix_mask = None,baseline = None):
+#     import numpy as np
+#     #im_array = (imchunk-baseline)#/baseline
+#     if not(baseline is None):
+#         im_array = imchunk-baseline#/baseline
+#     else:
+#         im_array = imchunk
+#     imshape = np.shape(im_array[0])
+#     im_array = im_array.reshape((-1,imshape[0]*imshape[1]))
+#     if mode == 'nnls':
+#         fits = np.empty((np.shape(model)[0],np.shape(im_array)[0]))
+#         for i,im2 in enumerate(im_array):
+#             im = im2.copy()
+#             im[~np.isfinite(im)] = 0
+#             from scipy.optimize import nnls
+#             if not(fit_pix_mask is None):
+#                 fits[:,i] = nnls(model[:,fit_pix_mask].T,im[fit_pix_mask])[0]
+#             else:
+#                 fits[:,i] = nnls(model.T,im)[0]
+#     else:
+#         im = im_array
+#         print np.shape(im_array)
+#         from numpy.linalg import pinv
+#         if not(fit_pix_mask is None):
+#             fits = np.dot(pinv(model[:,fit_pix_mask]).T,im[:,fit_pix_mask].T)
+#         else:
+#             fits = np.dot(pinv(model).T,im)
+#     print fits
+#     return fits
+#
+# #extract the data give the fly_path and 'line_name'
+# def extract_signals(fly):
+#     print self.thorax_view.model
+#     return
+#     import muscle_model as mm
+#     import numpy as np
+#     import h5py
+#     import cv2
+#     model_type = 'volumetric'
+#     #model_type = 'masks'
+#     #load the reference frame of the cofocal data and that of the imaged fly
+#     confocal_model = mm.GeometricModel(filepath = 'model_data.cpkl')
+#     #confocal_view = mm.ModelViewMPL(confocal_model)
+#     pkname = 'rframe_fits.cpkl'
+#     fly_frame = mm.Frame();fly_frame.load(pkname)
+#     #get the transformation matrix A and compose with a scaling using a scaling of s
+#     #to construct a transformation for homogenious vectors
+#     s = 1 #scale
+#     A = fly_frame.get_transform(confocal_model.frame)
+#     Ap = np.dot([[s,0.0,0],[0,s,0],[0,0,1]],A)
+#     #parse the GMR genotype to get the line name
+#     line_name = parse_GMR_genotype(fly.get_genotype())['gal4']
+#     #get the list of muscles for a given line
+#     muscles = get_muscle_list(line_name)
+#     muscles = [m for m in muscles if not('DVM' in m) and not('DLM' in m) and not('ps' in m)]
+#     #get a reference to the image data
+#     #fly_record = h5py.File(fly.fly_path + 'fly_record.hdf5','r')
+#     #exp_record = fly_record['experiments'].values()[0]
+#     imgs = exp_record['tiff_data']['images']
+#     #the output shape of the warped model
+#     output_shape = np.shape(imgs[0])
+#     if model_type == 'masks':
+#         #get the mask of all the muscles for fit
+#         masks = confocal_model.get_masks(fly_frame,np.shape(imgs[0]))
+#         #create the model using only the muscles that express in a given line
+#         model = np.vstack([masks[mask_key].T.ravel().astype(float) for mask_key in muscles])
+#         #construct a mask do reduce the projection to just the data within the model
+#         fit_pix_mask = np.sum(model,axis=0) > 0
+#     if model_type == 'volumetric':
+#         model_data = h5py.File(gd.muscle_anatomy_dir + 'flatened_model.hdf5','r')
+#         model_muscles = [np.array(model_data[muscle]) for muscle in muscles]
+#         output_shapes = [output_shape for muscle in muscles]
+#         transforms = [Ap[:-1,:] for muscle in muscles]
+#         model = v.map(cv2.warpAffine,model_muscles,transforms,output_shapes)
+#         model = np.vstack([muscle.T.ravel() for muscle in model])
+#         #model = np.vstack([cv2.warpAffine(np.array(model_data[muscle]), \
+#         #                               Ap[:-1,:],output_shape).T.ravel() \
+#         #                for muscle in muscles])
+#         fit_pix_mask = np.ones_like(model[0]) > 0
+#
+#     f = open(fly.fly_path + 'epoch_data.cpkl')
+#     import cPickle
+#     baseline_range = cPickle.load(f)['baseline_F']
+#     f.close()
+#     baseln = np.mean(imgs[baseline_range],axis = 0)
+#
+#     chnk_sz = 2000
+#     num_samps = np.shape(imgs)[0]
+#     chunks = [slice(x,x+chnk_sz if x+chnk_sz < num_samps else num_samps) for x in range(0,num_samps,chnk_sz)]
+#
+#     img_chunks = [np.array(imgs[chunk]) for chunk in chunks]
+#     models = [model for chunk in chunks]
+#     modes = ['nnls' for chunk in chunks]
+#     fit_pix_masks = [fit_pix_mask for chunk in chunks]
+#     baselines = [baseln for chunk in chunks]
+#
+#     fits = v.map(fit_to_model,img_chunks,models,modes,fit_pix_masks,baselines)
+#     #fit = fit_to_model(imchunk,model,mode = 'nnls',fit_pix_mask = fit_pix_mask)
+#     return np.hstack(fits),muscles
 
 
 class ModelView(object):

@@ -34,7 +34,7 @@ FN_STR = 'ca_camera'  # string to search for when looking for files containing i
 FN_EXT = '.hdf5'  # extension to search for when looking for files containing image data. *** Only hdf5 supported!
 MIN_FILE_SIZE = 1e7  # minimum camera data file size (in bytes)
 MODEL_PATH = model_path  # directory containing Thad's muscle models
-DRIVER = 'GMR39E01'
+DRIVER = 'GMR22H05'
 
 IMG_KEY = 'cam_imgs'  # key name in hdf5 file for images. if None, we'll try to guess
 T_KEY = 'cam_tstamps'  # key name in hdf5 file for camera time stamps. if None, we'll skip this
@@ -169,12 +169,12 @@ def fit_to_model(imchunk, model, fit_mode=FIT_MODE, fit_pix_mask=None, baseline=
                 fits[:, i] = nnls(model.T, im)[0]
     else:
         im = im_array
-        print(np.shape(im_array))
+        print(im_array.shape)
         from numpy.linalg import pinv
         if not (fit_pix_mask is None):
             fits = np.dot(pinv(model[:, fit_pix_mask]).T, im[:, fit_pix_mask].T)
         else:
-            fits = np.dot(pinv(model).T, im)
+            fits = np.dot(pinv(model).T, im.T)
 
     print('Done with chunk')
     return fits
@@ -212,6 +212,28 @@ def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volum
     for key in fly_frame_dict.keys():
         fly_frame[key] = fly_frame_dict[key]
 
+    """
+    Edit below from SCW on 3/29/2023 trying to correct an issue/confusion with the reference frames. 
+    Maybe the viewer GUI window uses a different coordinate system than the default image coordinates,
+    but we're seeing an issue where the confocal reference and the data image look to be aligned 
+    (up to a left/right flip) but the reference frame points are inverted. 
+    
+    To make the subsequent fitting for GCaMP signals easier, I'm going to flip the fly (data) reference
+    frame y coordinates so they better match our intuition. However, I would also ultimately like to 
+    change the viewer code so that they're saved in a way that makes more sense, so we want to check
+    if doing a corrective flip is necessary. For that check, I'm going to look at the sign of the y
+    coordinate of 'a2', the vector pointing from the reference frame origin (near b1) to the ventralmost
+    setae. This should be positive in our coordinates (i.e. "down" on the image, which typically 
+    has inverted y axis), so flip if it's not
+    """
+    if fly_frame['a2'][1] < 0:
+        # flip y coordinates and remake matrices A and A_inv
+        fly_frame['p'][1] = imgs[0].shape[0] - fly_frame['p'][1] - 1
+        fly_frame['a1'][1] = -1*fly_frame['a1'][1]
+        fly_frame['a2'][1] = -1*fly_frame['a2'][1]
+        fly_frame['A'] = np.vstack((fly_frame['a1'], fly_frame['a2'])).T
+        fly_frame['A_inv'] = np.linalg.inv(fly_frame['A'])
+
     # get the transformation matrix A (going from fly -> confocal frame) and compose with a scaling of s
     # to construct a transformation for homogeneous vectors
     s = 1  # scale
@@ -228,7 +250,11 @@ def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volum
         imgs = np.array(imgs)
 
     # read the first image to get the output shape of the warped model
-    output_shape = np.shape(imgs[0])
+    # NB: this used to not be reversed, which didn't make sense to me, since cv2 warpAffine takes output
+    # shape in reverse order. I guess we take a transpose anyway, but I would really just like for it
+    # to make as much sense as possible, since the other code is convoluted enough
+    # output_shape = np.shape(imgs[0])
+    output_shape = np.shape(imgs[0])[::-1]
 
     # ----------------------------------------------------------------------------------------------------
     # split demixing type depeding on model_type. as far as I know, we almost exclusively use volumetric
@@ -251,7 +277,8 @@ def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volum
         model = map(cv2.warpAffine, model_muscles, transforms, output_shapes)
         model.append(np.ones_like(model[0]))
         muscles.append('bkg')
-        model = np.vstack([muscle.T.ravel() for muscle in model])
+        # model = np.vstack([muscle.T.ravel() for muscle in model])
+        model = np.vstack([muscle.ravel() for muscle in model])
         fit_pix_mask = np.ones_like(model[0]) > 0
 
     # -----------------------------------------------------------------------
@@ -259,6 +286,15 @@ def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volum
     num_samps = np.shape(imgs)[0]
     print(num_samps)
     chunks = [slice(x, x + chunk_sz if x + chunk_sz < num_samps else num_samps) for x in range(0, num_samps, chunk_sz)]
+
+    # # TEMP -- save the model matrix and a chunk of images to a file so we can compare with other methods
+    # save_dict = dict()
+    # save_dict['model_mat'] = model
+    # save_dict['img_chunk'] = imgs[chunks[0]]
+    # save_dict_path = '/media/sam/SamData/FlyDB/Fly0059/script_model_matrix_and_images/data_dict.cpkl'
+    # with open(save_dict_path, 'wb') as f:
+    #     cPickle.dump(save_dict, f)
+    # print(aaaaa)
 
     # create list of image chunks and also make copies of other inputs to 'fit_to_model'
     img_chunks = [np.array(imgs[chunk]) for chunk in chunks]
