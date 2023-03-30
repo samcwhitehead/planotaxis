@@ -183,7 +183,7 @@ def fit_to_model(imchunk, model, fit_mode=FIT_MODE, fit_pix_mask=None, baseline=
 # ------------------------------------------------------------------------------------------------------------
 def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volumetric', model_name='thorax',
                           model_dir=MODEL_PATH, fit_mode=FIT_MODE, fit_pix_mask=None, baseline=None, 
-                          chunk_sz=CHUNK_SIZE):
+                          chunk_sz=CHUNK_SIZE, muscles=None):
     """
     Function to run the "fit_to_model" code on a given fly. Code taken from planotaxis/viewer.py
 
@@ -199,9 +199,13 @@ def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volum
         - mode : to be passed to fit_to_model (defined above)
         - fit_pix_mask : to be passed to fit_to_model (defined above)
         - baseline : to be passed to fit_to_model (defined above)
+        - chunk_sz : number of images to fit at one time (trying to fit whole dataset kills memory)
+        - muscles : (optional) normally, we get a list of muscles from the driver profile, but this also
+                    allows us to input them directly
 
     OUTPUTS:
-        -
+        - signals_dict : dictionary containing extracted muscle signals
+
     """
     # load the reference frame of the confocal data (will compare to 'fly_frame')
     confocal_model = mm.GeometricModel(filepath=os.path.join(model_dir, '%s'%(model_name), 'outlines.cpkl'))
@@ -241,9 +245,10 @@ def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volum
     Ap = np.dot([[s, 0.0, 0], [0, s, 0], [0, 0, 1]], A)
 
     # use the driver line name to get the list of muscles
-    with open(os.path.join(model_dir, '%s'%(model_name), 'profiles', '%s.cpkl'%(driver)), 'rb') as ff:
-        driver_profile = cPickle.load(ff)
-    muscles = driver_profile['selected_components']
+    if muscles is None:
+        with open(os.path.join(model_dir, '%s'%(model_name), 'profiles', '%s.cpkl'%(driver)), 'rb') as ff:
+            driver_profile = cPickle.load(ff)
+        muscles = driver_profile['selected_components']
 
     # make sure we've converted images to a numpy array
     if not isinstance(imgs, (np.ndarray, np.generic)):
@@ -286,15 +291,6 @@ def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volum
     num_samps = np.shape(imgs)[0]
     print(num_samps)
     chunks = [slice(x, x + chunk_sz if x + chunk_sz < num_samps else num_samps) for x in range(0, num_samps, chunk_sz)]
-
-    # # TEMP -- save the model matrix and a chunk of images to a file so we can compare with other methods
-    # save_dict = dict()
-    # save_dict['model_mat'] = model
-    # save_dict['img_chunk'] = imgs[chunks[0]]
-    # save_dict_path = '/media/sam/SamData/FlyDB/Fly0059/script_model_matrix_and_images/data_dict.cpkl'
-    # with open(save_dict_path, 'wb') as f:
-    #     cPickle.dump(save_dict, f)
-    # print(aaaaa)
 
     # create list of image chunks and also make copies of other inputs to 'fit_to_model'
     img_chunks = [np.array(imgs[chunk]) for chunk in chunks]

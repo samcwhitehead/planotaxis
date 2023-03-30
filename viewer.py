@@ -7,19 +7,27 @@ possible to pre-compile the .ui file using pyuic (see VideoSpeedTest and
 ScatterPlotSpeedTest examples; these .ui files have been compiled with the
 tools/rebuildUi.py script).
 """
-#import initExample ## Add path to library (just for examples; you do not need this)
-
+# IMPORTS
+import os
+import h5py
+import numpy as np
 import pyqtgraph as pg
 
-# WBD
+# muscle model
+import muscle_model as mm
+
+# import functions from extract_muscle_signals
+from extract_muscle_signals import fit_to_model, extract_gcamp_signals
+
+# import pyqt tools
+from pyqtgraph.Qt import QtCore, QtGui#QStringList,QString
+
 # ------------------------------------------------------------------------
 import pyqtgraph.Qt
 print 'pyqtgraph.Qt.USE_PYSIDE = ', pyqtgraph.Qt.USE_PYSIDE
 print 'pyqtgraph.Qt.QtVersion  = ', pyqtgraph.Qt.QtVersion
 # ------------------------------------------------------------------------
 
-from pyqtgraph.Qt import QtCore, QtGui#QStringList,QString
-import os
 this_dir, this_filename = os.path.split(__file__)
 model_path = os.path.join(this_dir, "models")
 
@@ -30,123 +38,12 @@ path = os.path.dirname(os.path.abspath(__file__))
 uiFile = os.path.join(path, 'viewer.ui')
 WindowTemplate, TemplateBaseClass = pg.Qt.loadUiType(uiFile)
 
-#import tifffile
-import h5py
-import numpy as np
-
-#import db_access as dba
-import muscle_model as mm
-
-#fly_db = dba.get_db()
-
 default_rframe_data = {'a1': np.array([ 51.5848967 ,  -5.93928407]),
                        'a2': np.array([ -0.09151179,  88.42505672]),
                        'p': np.array([ 26.66908747,  34.43488385])}
 
-# import functions from extract_muscle_signals
-from extract_muscle_signals import fit_to_model, extract_gcamp_signals
 
-# def fit_to_model(imchunk,model, mode = 'pinv',fit_pix_mask = None,baseline = None):
-#     import numpy as np
-#     #im_array = (imchunk-baseline)#/baseline
-#     if not(baseline is None):
-#         im_array = imchunk-baseline#/baseline
-#     else:
-#         im_array = imchunk
-#     imshape = np.shape(im_array[0])
-#     im_array = im_array.reshape((-1,imshape[0]*imshape[1]))
-#     if mode == 'nnls':
-#         fits = np.empty((np.shape(model)[0],np.shape(im_array)[0]))
-#         for i,im2 in enumerate(im_array):
-#             im = im2.copy()
-#             im[~np.isfinite(im)] = 0
-#             from scipy.optimize import nnls
-#             if not(fit_pix_mask is None):
-#                 fits[:,i] = nnls(model[:,fit_pix_mask].T,im[fit_pix_mask])[0]
-#             else:
-#                 fits[:,i] = nnls(model.T,im)[0]
-#     else:
-#         im = im_array
-#         print np.shape(im_array)
-#         from numpy.linalg import pinv
-#         if not(fit_pix_mask is None):
-#             fits = np.dot(pinv(model[:,fit_pix_mask]).T,im[:,fit_pix_mask].T)
-#         else:
-#             fits = np.dot(pinv(model).T,im)
-#     print fits
-#     return fits
-#
-# #extract the data give the fly_path and 'line_name'
-# def extract_signals(fly):
-#     print self.thorax_view.model
-#     return
-#     import muscle_model as mm
-#     import numpy as np
-#     import h5py
-#     import cv2
-#     model_type = 'volumetric'
-#     #model_type = 'masks'
-#     #load the reference frame of the cofocal data and that of the imaged fly
-#     confocal_model = mm.GeometricModel(filepath = 'model_data.cpkl')
-#     #confocal_view = mm.ModelViewMPL(confocal_model)
-#     pkname = 'rframe_fits.cpkl'
-#     fly_frame = mm.Frame();fly_frame.load(pkname)
-#     #get the transformation matrix A and compose with a scaling using a scaling of s
-#     #to construct a transformation for homogenious vectors
-#     s = 1 #scale
-#     A = fly_frame.get_transform(confocal_model.frame)
-#     Ap = np.dot([[s,0.0,0],[0,s,0],[0,0,1]],A)
-#     #parse the GMR genotype to get the line name
-#     line_name = parse_GMR_genotype(fly.get_genotype())['gal4']
-#     #get the list of muscles for a given line
-#     muscles = get_muscle_list(line_name)
-#     muscles = [m for m in muscles if not('DVM' in m) and not('DLM' in m) and not('ps' in m)]
-#     #get a reference to the image data
-#     #fly_record = h5py.File(fly.fly_path + 'fly_record.hdf5','r')
-#     #exp_record = fly_record['experiments'].values()[0]
-#     imgs = exp_record['tiff_data']['images']
-#     #the output shape of the warped model
-#     output_shape = np.shape(imgs[0])
-#     if model_type == 'masks':
-#         #get the mask of all the muscles for fit
-#         masks = confocal_model.get_masks(fly_frame,np.shape(imgs[0]))
-#         #create the model using only the muscles that express in a given line
-#         model = np.vstack([masks[mask_key].T.ravel().astype(float) for mask_key in muscles])
-#         #construct a mask do reduce the projection to just the data within the model
-#         fit_pix_mask = np.sum(model,axis=0) > 0
-#     if model_type == 'volumetric':
-#         model_data = h5py.File(gd.muscle_anatomy_dir + 'flatened_model.hdf5','r')
-#         model_muscles = [np.array(model_data[muscle]) for muscle in muscles]
-#         output_shapes = [output_shape for muscle in muscles]
-#         transforms = [Ap[:-1,:] for muscle in muscles]
-#         model = v.map(cv2.warpAffine,model_muscles,transforms,output_shapes)
-#         model = np.vstack([muscle.T.ravel() for muscle in model])
-#         #model = np.vstack([cv2.warpAffine(np.array(model_data[muscle]), \
-#         #                               Ap[:-1,:],output_shape).T.ravel() \
-#         #                for muscle in muscles])
-#         fit_pix_mask = np.ones_like(model[0]) > 0
-#
-#     f = open(fly.fly_path + 'epoch_data.cpkl')
-#     import cPickle
-#     baseline_range = cPickle.load(f)['baseline_F']
-#     f.close()
-#     baseln = np.mean(imgs[baseline_range],axis = 0)
-#
-#     chnk_sz = 2000
-#     num_samps = np.shape(imgs)[0]
-#     chunks = [slice(x,x+chnk_sz if x+chnk_sz < num_samps else num_samps) for x in range(0,num_samps,chnk_sz)]
-#
-#     img_chunks = [np.array(imgs[chunk]) for chunk in chunks]
-#     models = [model for chunk in chunks]
-#     modes = ['nnls' for chunk in chunks]
-#     fit_pix_masks = [fit_pix_mask for chunk in chunks]
-#     baselines = [baseln for chunk in chunks]
-#
-#     fits = v.map(fit_to_model,img_chunks,models,modes,fit_pix_masks,baselines)
-#     #fit = fit_to_model(imchunk,model,mode = 'nnls',fit_pix_mask = fit_pix_mask)
-#     return np.hstack(fits),muscles
-
-
+# --------------------------------------------------------------------------------------
 class ModelView(object):
 
     def __init__(self,model):
@@ -155,15 +52,6 @@ class ModelView(object):
         self.plot_frame = copy.copy(model.frame)
         self.curves = None
         self.element_list = []
-        #self.element_list = ['b2', 'b1', 'ttm', 'b3', 'pr', 'nm', 
-        #                    'i1', 'iii24', 'A', 'C', 'B', 'E', 'D',
-        #                     'G', 'F', 'I', 'H', 'K', 'i2', 'J', 'tpd', 
-        #                     'iii1', 'iii3', 'hg2', 'hg3', 'hg1', 'tpv', 
-        #                     'DVM1', 'hg4', 'DVM3', 'DVM2']
-        #self.element_list = ['b2', 'b1', 'ttm', 'b3', 'pr', 'nm', 
-        #                     'i1', 'i2','iii24',  'tpd', 'iii1', 'iii3', 'hg2',
-        #                     'hg3', 'hg1', 'tpv',]
-        
 
     def plot(self,basis,plotobject):
         if self.curves:
@@ -193,6 +81,7 @@ class ModelView(object):
         self.plot_frame['a1'] = a1
         self.plot_frame['a2'] = a2
         self.update_basis(self.plot_frame)
+
 
 class RefrenceFrameROI(pg.ROI):
     
@@ -255,12 +144,6 @@ class MainWindow(TemplateBaseClass):
         self.ui.frameView.setCentralItem(self.plt)
         self.frameView = pg.ImageItem()
         self.plt.addItem(self.frameView)
-
-        #transform image
-        #self.transformPlt = pg.PlotItem()
-        #self.ui.transformImage.setCentralItem(self.transformPlt)
-        #self.transformImage = pg.ImageItem()
-        #self.transformPlt.addItem(self.transformImage)
 
         #gama plot
         self.gammaPlt = pg.PlotItem()
@@ -330,7 +213,7 @@ class MainWindow(TemplateBaseClass):
         self.ui.epochEnd.textEdited.connect(self.updateEpochFromText)
         
         #muscle demixing
-        self.ui.applyDemixing.clicked.connect(self.extract_signals)
+        self.ui.applyDemixing.clicked.connect(self.extract_signals)  
         self.ui.subtractBackground.stateChanged.connect(self.subtractBackgroundChecked)
         self.subtract_background = self.ui.subtractBackground.isChecked()
 
@@ -583,17 +466,6 @@ class MainWindow(TemplateBaseClass):
         #tfile = tifffile.TiffFile(self.CurrentTiffFileName)
         self.images = np.array(self.FlyFile[key])
         
-        #self.maximg = np.max(self.images,axis = 0)
-        #self.transform_img = self.affineWarp(self.maximg)
-        #self.current_fly = selection.parent().text(0)
-        #print self.current_fly
-        #flydir = '%s%s/'%(dba.root_dir,self.current_fly)
-        #import cPickle
-        #with open('tseries_data.cpkl','rb') as f:
-        #    tser_data = cPickle.load(f)
-        #tser_data = np.array(fly_db[fnum]['experiments'].values()[0]['tiff_data']['axon_framebase']['wb_frequency'])
-        #self.tserTrace.setData(tser_data)
-        
         try:
             f = open('basis_fits.cpkl','rb')
             import cPickle
@@ -604,16 +476,7 @@ class MainWindow(TemplateBaseClass):
                     (basis['p'][0]+basis['a2'][0],basis['p'][1]+basis['a2'][1])]
             state['points'] = pnts
             self.roi.setState(state)
-            self.roi.stateChanged(        #self.transform_img = self.affineWarp(self.maximg)
-        #self.current_fly = selection.parent().text(0)
-        #print self.current_fly
-        #flydir = '%s%s/'%(dba.root_dir,self.current_fly)
-        #import cPickle
-        #with open('tseries_data.cpkl','rb') as f:
-        #    tser_data = cPickle.load(f)
-        #tser_data = np.array(fly_db[fnum]['experiments'].values()[0]['tiff_data']['axon_framebase']['wb_frequency'])
-        #self.tserTrace.setData(tser_data)
-        )
+            self.roi.stateChanged()
             self.ui.commentBox.setPlainText(basis['commentBox'])
         except IOError:
             print 'no file'
@@ -675,14 +538,6 @@ class MainWindow(TemplateBaseClass):
         src_p0 = src_f['a1'] + src_f['p']
         src_p1 = src_f['p']
         src_p2 = src_f['a2'] + src_f['p']
-        #import cv2
-        #A = cv2.getAffineTransform(np.float32([src_p0,src_p1,src_p2]),np.float32([dst_p0,dst_p1,dst_p2]))
-        #output_shape = (1024, 1024)
-        #self.transform_img = cv2.warpAffine(self.maximg.T,A,output_shape).T[:,::-1].astype(np.float32)
-
-        #display_img = np.dstack((self.transform_img ,self.transform_img ,self.transform_img ))
-        #display_img += overlay*0.2
-        #self.transformImage.setImage(display_img)
 
     def frameScrollBar_valueChanged(self,value):
         #self.frameView.setImage(self.images[value,:,:])
@@ -714,108 +569,33 @@ class MainWindow(TemplateBaseClass):
         #self.thorax_view.update_basis(loaddata)
         #print self.ui.fileTree.selectedItems()[0].data(0,QtCore.Qt.UserRole).toPyObject()
 
+    # ------------------------------------------------------------------------------
+    # SCW update to use an imported function, thereby removing some redundant code
     def extract_signals(self):
-        #import muscle_model as mm
-        print self.thorax_view.model.frame
-        #return
-        import numpy as np
-        import h5py
-        import cv2
-        model_type = 'volumetric'
-        #model_type = 'masks'
-        #load the reference frame of the cofocal data and that of the imaged fly
-        #confocal_model = mm.GeometricModel(filepath = 'anatomy_outlines.cpkl')
-        confocal_frame = self.thorax_view.model.frame
-        fly_frame = self.thorax_view.plot_frame
-        #confocal_view = mm.ModelViewMPL(confocal_model)
-        #pkname = os.path.join(self.CurrentDirPath,'frame_fits.cpkl')
-        
-        #fly_frame = mm.Frame();fly_frame.load(pkname)
-        #get the transformation matrix A and compose with a scaling of s
-        #to construct a transformation for homogenious vectors
-        s = 1 #scale
-        A = fly_frame.get_transform(confocal_frame)
-        Ap = np.dot([[s,0.0,0],[0,s,0],[0,0,1]],A)
-        #parse the GMR genotype to get the line name
-        #line_name = parse_GMR_genotype(fly.get_genotype())['gal4']
-        #get the list of muscles for a given line
-        #muscles = get_muscle_list()
-        #muscles = [m for m in muscles if not('DVM' in m) and not('DLM' in m) and not('ps' in m)]
-        muscles = self.thorax_view.element_list
-        #get a reference to the image data
-        #fly_record = h5py.File(fly.fly_path + 'fly_record.hdf5','r')
-        #exp_record = fly_record['experiments'].values()[0]
-        #tfile = tifffile.TiffFile('image_stack.tif')
-        #imgs = tfile.asarray()
+        # read data fields from self
         imgs = np.array(self.images)
-        #the output shape of the warped model
-        output_shape = np.shape(imgs[0])
-        if model_type == 'masks':
-            #get the mask of all the muscles for fit
-            masks = confocal_model.get_masks(fly_frame,np.shape(imgs[0]))
-            #create the model using only the muscle Childcare/Lesson Combo: that express in a given line
-            model = np.vstack([masks[mask_key].T.ravel().astype(float) for mask_key in muscles])
-            #construct a mask do reduce the projection to just the data within the model
-            fit_pix_mask = np.sum(model,axis=0) > 0
-        if model_type == 'volumetric':
-            parent_dir = os.path.abspath(os.path.join(this_dir, '..'))
-            unmixing_filters = os.path.join(parent_dir, 'muscle_model', 'unmixing_filters',
-                                            'NA_0.45_200mm_Tube_FN1', 'flatened_model.hdf5')
-            model_data = h5py.File(unmixing_filters,'r')
-            #muscles = model_data.keys()
-            model_muscles = [np.array(model_data[muscle]) for muscle in muscles]
-            output_shapes = [output_shape for muscle in muscles]
-            transforms = [Ap[:-1,:] for muscle in muscles]
-            model = map(cv2.warpAffine,model_muscles,transforms,output_shapes)
-            model.append(np.ones_like(model[0]))
-            muscles.append('bkg')
-            model = np.vstack([muscle.T.ravel() for muscle in model])
-            fit_pix_mask = np.ones_like(model[0]) > 0
+        fly_frame = self.thorax_view.plot_frame
+        muscles = self.thorax_view.element_list
 
-        print muscles
-        print np.shape(model)
-        #return
-        #fname = os.path.join(self.CurrentDirPath,'epoch_data.cpkl')
-        #with open(fname,'rb') as f:
-        #    import cPickle
-        #    baseline_range = cPickle.load(f)['baseline_F']
-        if self.subtract_background:
-            baseline_range = self.epoch_dict['background']
-            baseln = np.mean(imgs[baseline_range],axis = 0)
-        else:
-            baseln = None 
-            #print 'here'
+        # some hard-coded values that should really be made into variables
+        fit_mode = 'pinv'
+        chunk_sz = 100
 
-        chnk_sz = 100
-        num_samps = np.shape(imgs)[0]
-        print num_samps
-        chunks = [slice(x,x+chnk_sz if x+chnk_sz < num_samps else num_samps) for x in range(0,num_samps,chnk_sz)]
-        
-        img_chunks = [np.array(imgs[chunk]) for chunk in chunks]
-        models = [model for chunk in chunks]
-        # modes = ['nnls' for chunk in chunks]
-        modes = ['pinv' for chunk in chunks]
-        fit_pix_masks = [fit_pix_mask for chunk in chunks]
-        baselines = [baseln for chunk in chunks]
-        
-        fits = map(fit_to_model,img_chunks,models,modes,fit_pix_masks,baselines)
-        #fit = fit_to_model(imchunk,model,mode = 'nnls',fit_pix_mask = fit_pix_mask)
-        
-        fname = os.path.join(self.CurrentFlyPath,self.image_prefix+ '_model_fits.cpkl')
-        savedict = dict()
+        # run signal extraction
+        signals_dict = extract_gcamp_signals(imgs, fly_frame, driver=None, model_type='volumetric',
+                                             model_name='thorax', model_dir=model_path, fit_mode=fit_mode,
+                                             fit_pix_mask=None, baseline=None, chunk_sz=chunk_sz,
+                                             muscles=muscles)
+
+        # save extracted signals
         import cPickle
-        with open(fname,'wb') as f:
-            [savedict.update({str(mname):sig}) for sig,mname in zip(np.hstack(fits),muscles)]
-            cPickle.dump(savedict,f)
+        fname = os.path.join(self.CurrentFlyPath, self.image_prefix + '_model_fits.cpkl')
+        with open(fname, 'wb') as f:
+            cPickle.dump(signals_dict, f)
 
-        #import shelve
-        #fname = os.path.join(self.CurrentDirPath,'model_fits.shelve')
-        #self.signalshelf = shelve.open(fname) 
-        print np.shape(np.hstack(fits))
+        # print a little update
         print muscles
         print 'Done!'
-        #[self.signalshelf.update({str(mname):sig}) for sig,mname in zip(np.hstack(fits),muscles)]
-       # self.add_model_signals()
 
 win = MainWindow()
 
