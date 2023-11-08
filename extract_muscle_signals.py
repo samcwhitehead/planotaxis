@@ -230,13 +230,13 @@ def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volum
     setae. This should be positive in our coordinates (i.e. "down" on the image, which typically 
     has inverted y axis), so flip if it's not
     """
-    if fly_frame['a2'][1] < 0:
-        # flip y coordinates and remake matrices A and A_inv
-        fly_frame['p'][1] = imgs[0].shape[0] - fly_frame['p'][1] - 1
-        fly_frame['a1'][1] = -1*fly_frame['a1'][1]
-        fly_frame['a2'][1] = -1*fly_frame['a2'][1]
-        fly_frame['A'] = np.vstack((fly_frame['a1'], fly_frame['a2'])).T
-        fly_frame['A_inv'] = np.linalg.inv(fly_frame['A'])
+    # if fly_frame['a2'][1] < 0:
+    #     # flip y coordinates and remake matrices A and A_inv
+    #     fly_frame['p'][1] = imgs[0].shape[0] - fly_frame['p'][1] - 1
+    #     fly_frame['a1'][1] = -1*fly_frame['a1'][1]
+    #     fly_frame['a2'][1] = -1*fly_frame['a2'][1]
+    #     fly_frame['A'] = np.vstack((fly_frame['a1'], fly_frame['a2'])).T
+    #     fly_frame['A_inv'] = np.linalg.inv(fly_frame['A'])
 
     # get the transformation matrix A (going from fly -> confocal frame) and compose with a scaling of s
     # to construct a transformation for homogeneous vectors
@@ -258,8 +258,8 @@ def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volum
     # NB: this used to not be reversed, which didn't make sense to me, since cv2 warpAffine takes output
     # shape in reverse order. I guess we take a transpose anyway, but I would really just like for it
     # to make as much sense as possible, since the other code is convoluted enough
-    # output_shape = np.shape(imgs[0])
-    output_shape = np.shape(imgs[0])[::-1]
+    output_shape = np.shape(imgs[0])
+    # output_shape = np.shape(imgs[0])[::-1]
 
     # ----------------------------------------------------------------------------------------------------
     # split demixing type depeding on model_type. as far as I know, we almost exclusively use volumetric
@@ -283,7 +283,7 @@ def extract_gcamp_signals(imgs, fly_frame_dict, driver=DRIVER, model_type='volum
         model.append(np.ones_like(model[0]))
         muscles.append('bkg')
         # model = np.vstack([muscle.T.ravel() for muscle in model])
-        model = np.vstack([muscle.ravel() for muscle in model])
+        model = np.vstack([muscle.T.ravel() for muscle in model])
         fit_pix_mask = np.ones_like(model[0]) > 0
 
     # -----------------------------------------------------------------------
@@ -376,11 +376,15 @@ def run_gcamp_extraction(fly_id, fly_db_path=FLY_DB_PATH, fn_str=FN_STR, fn_ext=
             imgs = np.array(h5f[im_key])
 
             if t_key:
-                tstamps = np.array(h5f[T_KEY])
+                try:
+                    tstamps = np.array(h5f[T_KEY])
+                except KeyError:
+                    tstamps = None
             else:
                 tstamps = None
 
-        # run analysis on images
+        # run analysis on images (do the transformations to match GUI)
+        imgs = imgs.swapaxes(-2, -1)[..., ::-1]
         signals = extract_gcamp_signals(imgs, rframe, chunk_sz=chunk_size, fit_mode=fit_mode, driver=driver)
 
         # ** add time to dictionary
@@ -400,8 +404,9 @@ def run_gcamp_extraction(fly_id, fly_db_path=FLY_DB_PATH, fn_str=FN_STR, fn_ext=
 
             # save output (hdf5)
             with h5py.File(os.path.join(fly_path, save_fn + '.hdf5'), 'w') as hsf:
-                for key in signals.keys():
-                    hsf.create_dataset(key, data=signals[key])
+                for key, item in signals.items():
+                    if item is not None:
+                        hsf.create_dataset(key, data=item)
 
         # let us know we're done
         print('Completed %s' % (fn))
